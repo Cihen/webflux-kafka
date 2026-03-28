@@ -1,9 +1,11 @@
 package com.thucchien02.profileservice.service;
 
+import com.google.gson.Gson;
 import com.thucchien02.commonservice.common.CommonException;
+import com.thucchien02.profileservice.event.EventProducer;
 import com.thucchien02.profileservice.model.ProfileDTO;
 import com.thucchien02.profileservice.repository.ProfileRepository;
-import com.thucchien02.profileservice.utils.Constant;
+import com.thucchien02.commonservice.utils.Constant;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -11,12 +13,19 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.Objects;
+
 @Service
 @Slf4j
 public class ProfileService {
 
+    Gson gson = new Gson();
+
     @Autowired
     ProfileRepository profileRepository;
+
+    @Autowired
+    EventProducer eventProducer;
 
     public Flux<ProfileDTO> getAllProfile() {
         return profileRepository.findAll()
@@ -48,7 +57,29 @@ public class ProfileService {
                 .flatMap(profile -> profileRepository.save(profile))
                 .map(ProfileDTO::entityToDto)
                 .doOnError(throwable -> log.error(throwable.getMessage()))
-                .doOnSuccess(profileDTO1 -> {
+                .doOnSuccess(dto -> {
+                    if (Objects.equals(dto.getStatus(), Constant.STATUS_PROFILE_PENDING)) {
+                        dto.setInitialBalance(profileDTO.getInitialBalance());
+                        eventProducer.send(Constant.PROFILE_ONBOARDING_TOPIC, gson.toJson(dto))
+                                .subscribe();
+                    }
                 });
+    }
+
+    public Mono<ProfileDTO> updateStatusProfile(ProfileDTO profileDTO) {
+        return getDetailProfileByEmail(profileDTO.getEmail())
+                .map(ProfileDTO::dtoToEntity)
+                .flatMap(profile -> {
+                    profile.setStatus(profileDTO.getStatus());
+                    return profileRepository.save(profile);
+                })
+                .map(ProfileDTO::entityToDto)
+                .doOnError(throwable -> log.error(throwable.getMessage()));
+    }
+
+    private Mono<ProfileDTO> getDetailProfileByEmail(String email) {
+        return profileRepository.findByEmail(email)
+                .map(ProfileDTO::entityToDto)
+                .switchIfEmpty(Mono.error(new CommonException("PF03", "Profile not found", HttpStatus.NOT_FOUND)));
     }
 }
