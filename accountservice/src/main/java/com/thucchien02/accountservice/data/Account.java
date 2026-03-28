@@ -13,7 +13,7 @@ import org.springframework.data.relational.core.mapping.Table;
 @Table
 public class Account {
     @Id
-    private String id;
+    private Long id;
     private String email;
     private String currency;
     private double balance;
@@ -21,7 +21,7 @@ public class Account {
     @Version
     private Long version;
 
-    public Account(String id, String email, String currency, double balance, double reserved) {
+    public Account(Long id, String email, String currency, double balance, double reserved) {
         this.id = id;
         this.email = email;
         this.currency = currency;
