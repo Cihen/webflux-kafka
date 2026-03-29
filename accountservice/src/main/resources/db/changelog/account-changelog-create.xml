@@ -6,7 +6,7 @@
       http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.1.xsd">
 
     <!-- TABLE ACCOUNT -->
-    <changeSet id="create-table-account" author="account">
+    <changeSet id="create-table-account" author="account" runAlways="true">
         <preConditions onFail="CONTINUE" onFailMessage="table account already exists">
             <not>
                 <tableExists tableName="account"/>
